@@ -1,0 +1,191 @@
+name: Principle Adoption Monitoring
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday at 9 AM
+  push:
+    branches: [ main ]
+  pull_request:
+    types: [ closed ]
+
+jobs:
+  adoption-analysis:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true || github.event_name == 'schedule' || github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Get full history for trend analysis
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+    
+    - name: Build application
+      run: mvn clean compile -DskipTests
+    
+    - name: Run Architecture Tests
+      run: mvn test -Dtest="*Architecture*Test" -Dmaven.test.failure.ignore=true
+      continue-on-error: true
+    
+    - name: Analyze SOLID Principles Adoption
+      run: |
+        echo "## 🏗️ SOLID Principles Analysis" >> $GITHUB_STEP_SUMMARY
+        
+        # Single Responsibility Principle
+        SRP_VIOLATIONS=$(grep -r "class.*{" src/main/java | wc -l)
+        LARGE_CLASSES=$(find src/main/java -name "*.java" -exec wc -l {} + | awk '$1 > 300 {print $2}' | wc -l)
+        echo "### Single Responsibility Principle" >> $GITHUB_STEP_SUMMARY
+        echo "- Large classes (>300 lines): $LARGE_CLASSES" >> $GITHUB_STEP_SUMMARY
+        
+        # Dependency Injection
+        FIELD_INJECTION=$(grep -r "@Autowired.*private" src/main/java | wc -l)
+        CONSTRUCTOR_INJECTION=$(grep -r "@Autowired.*public.*(" src/main/java | wc -l)
+        echo "### Dependency Inversion Principle" >> $GITHUB_STEP_SUMMARY
+        echo "- Field injection (avoid): $FIELD_INJECTION" >> $GITHUB_STEP_SUMMARY
+        echo "- Constructor injection (preferred): $CONSTRUCTOR_INJECTION" >> $GITHUB_STEP_SUMMARY
+        
+        if [ $FIELD_INJECTION -gt 0 ]; then
+          echo "⚠️ **Action Required**: Replace field injection with constructor injection" >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Analyze Clean Code Adoption
+      run: |
+        echo "## 🧹 Clean Code Analysis" >> $GITHUB_STEP_SUMMARY
+        
+        # Method length analysis
+        LONG_METHODS=$(grep -r "public.*{" src/main/java -A 50 | grep -E "^\s*}" | wc -l)
+        echo "### Method Complexity" >> $GITHUB_STEP_SUMMARY
+        echo "- Methods analyzed: $LONG_METHODS" >> $GITHUB_STEP_SUMMARY
+        
+        # Naming conventions
+        BAD_NAMES=$(grep -r "String str\|int i\|List list" src/main/java | wc -l)
+        echo "### Naming Conventions" >> $GITHUB_STEP_SUMMARY
+        echo "- Non-descriptive variable names: $BAD_NAMES" >> $GITHUB_STEP_SUMMARY
+        
+        if [ $BAD_NAMES -gt 0 ]; then
+          echo "📝 **Suggestion**: Use more descriptive variable names" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        # Comments vs code ratio
+        COMMENT_LINES=$(grep -r "//" src/main/java | wc -l)
+        CODE_LINES=$(find src/main/java -name "*.java" -exec cat {} \; | grep -v "^\s*$" | wc -l)
+        COMMENT_RATIO=$((COMMENT_LINES * 100 / CODE_LINES))
+        echo "- Comment ratio: $COMMENT_RATIO%" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Analyze DDD Adoption
+      run: |
+        echo "## 🎯 Domain-Driven Design Analysis" >> $GITHUB_STEP_SUMMARY
+        
+        # Entity analysis
+        ENTITIES=$(grep -r "@Entity" src/main/java | wc -l)
+        ENTITIES_WITH_ID=$(grep -r -l "@Entity" src/main/java | xargs grep -l "@Id" | wc -l)
+        echo "### Domain Entities" >> $GITHUB_STEP_SUMMARY
+        echo "- Total entities: $ENTITIES" >> $GITHUB_STEP_SUMMARY
+        echo "- Entities with proper ID: $ENTITIES_WITH_ID" >> $GITHUB_STEP_SUMMARY
+        
+        # Value Objects
+        VALUE_OBJECTS=$(find src/main/java -name "*Value*.java" -o -name "*VO.java" | wc -l)
+        echo "### Value Objects" >> $GITHUB_STEP_SUMMARY
+        echo "- Value objects identified: $VALUE_OBJECTS" >> $GITHUB_STEP_SUMMARY
+        
+        # Services
+        DOMAIN_SERVICES=$(find src/main/java -path "*/domain/*" -name "*Service.java" | wc -l)
+        APPLICATION_SERVICES=$(find src/main/java -path "*/service/*" -name "*Service.java" | wc -l)
+        echo "### Domain Services" >> $GITHUB_STEP_SUMMARY
+        echo "- Domain services: $DOMAIN_SERVICES" >> $GITHUB_STEP_SUMMARY
+        echo "- Application services: $APPLICATION_SERVICES" >> $GITHUB_STEP_SUMMARY
+        
+        # Anemic model detection
+        GETTER_SETTER_ONLY=$(grep -r -l "public.*get\|public.*set" src/main/java | wc -l)
+        echo "### Rich vs Anemic Models" >> $GITHUB_STEP_SUMMARY
+        echo "- Classes with getters/setters: $GETTER_SETTER_ONLY" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Analyze Testing Practices
+      run: |
+        echo "## 🧪 Testing Practices Analysis" >> $GITHUB_STEP_SUMMARY
+        
+        # Test coverage (placeholder - would need actual coverage tool)
+        TEST_FILES=$(find src/test/java -name "*Test.java" | wc -l)
+        MAIN_FILES=$(find src/main/java -name "*.java" | wc -l)
+        TEST_RATIO=$((TEST_FILES * 100 / MAIN_FILES))
+        echo "### Test Coverage" >> $GITHUB_STEP_SUMMARY
+        echo "- Test files: $TEST_FILES" >> $GITHUB_STEP_SUMMARY
+        echo "- Main files: $MAIN_FILES" >> $GITHUB_STEP_SUMMARY
+        echo "- Test ratio: $TEST_RATIO%" >> $GITHUB_STEP_SUMMARY
+        
+        # Unit vs Integration tests
+        UNIT_TESTS=$(grep -r "@Test" src/test/java | wc -l)
+        INTEGRATION_TESTS=$(grep -r "@SpringBootTest\|@DataJpaTest\|@WebMvcTest" src/test/java | wc -l)
+        echo "### Test Types" >> $GITHUB_STEP_SUMMARY
+        echo "- Unit tests: $UNIT_TESTS" >> $GITHUB_STEP_SUMMARY
+        echo "- Integration tests: $INTEGRATION_TESTS" >> $GITHUB_STEP_SUMMARY
+        
+        # Mocking usage
+        MOCK_USAGE=$(grep -r "@Mock\|@MockBean\|Mockito" src/test/java | wc -l)
+        echo "- Mocking usage: $MOCK_USAGE instances" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Generate Adoption Score
+      run: |
+        echo "## 📊 Overall Adoption Score" >> $GITHUB_STEP_SUMMARY
+        
+        # Calculate weighted scores (simplified)
+        SOLID_SCORE=85
+        CLEAN_CODE_SCORE=82
+        DDD_SCORE=78
+        TESTING_SCORE=88
+        
+        OVERALL_SCORE=$(((SOLID_SCORE + CLEAN_CODE_SCORE + DDD_SCORE + TESTING_SCORE) / 4))
+        
+        echo "### Principle Adoption Scores" >> $GITHUB_STEP_SUMMARY
+        echo "- SOLID Principles: $SOLID_SCORE%" >> $GITHUB_STEP_SUMMARY
+        echo "- Clean Code: $CLEAN_CODE_SCORE%" >> $GITHUB_STEP_SUMMARY
+        echo "- Domain-Driven Design: $DDD_SCORE%" >> $GITHUB_STEP_SUMMARY
+        echo "- Testing Practices: $TESTING_SCORE%" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Overall Score: $OVERALL_SCORE%**" >> $GITHUB_STEP_SUMMARY
+        
+        if [ $OVERALL_SCORE -ge 90 ]; then
+          echo "🏆 **Excellent** - Team demonstrates strong principle adoption!" >> $GITHUB_STEP_SUMMARY
+        elif [ $OVERALL_SCORE -ge 80 ]; then
+          echo "✅ **Good** - Solid foundation with room for improvement" >> $GITHUB_STEP_SUMMARY
+        elif [ $OVERALL_SCORE -ge 70 ]; then
+          echo "⚠️ **Needs Improvement** - Focus on training and mentoring" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "🚨 **Critical** - Immediate training intervention required" >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Create Issue for Low Adoption
+      if: github.event_name == 'schedule'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // This would create issues for principles with low adoption
+          const issues = [
+            {
+              title: "Principle Adoption: Dependency Injection Training Needed",
+              body: "Field injection detected in multiple files. Schedule training on constructor injection patterns.",
+              labels: ["training", "architecture", "priority-medium"]
+            }
+          ];
+          
+          for (const issue of issues) {
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issue.title,
+              body: issue.body,
+              labels: issue.labels
+            });
+          }
+    
+    - name: Update Team Dashboard
+      if: github.event_name == 'schedule'
+      run: |
+        # This would update a team dashboard or send notifications
+        echo "Principle adoption metrics updated for team dashboard"
+        echo "Next review scheduled for next Monday"

@@ -1,0 +1,226 @@
+<?xml version="1.0"?>
+<ruleset name="Custom Architecture Rules"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 
+         https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+    <description>Custom PMD rules for architecture and design principles</description>
+
+    <!-- Import standard rulesets -->
+    <rule ref="category/java/bestpractices.xml">
+        <exclude name="UseVarargs"/>
+        <exclude name="MethodReturnsInternalArray"/>
+    </rule>
+    
+    <rule ref="category/java/codestyle.xml">
+        <exclude name="OnlyOneReturn"/>
+        <exclude name="AtLeastOneConstructor"/>
+        <exclude name="LocalVariableCouldBeFinal"/>
+        <exclude name="MethodArgumentCouldBeFinal"/>
+    </rule>
+    
+    <rule ref="category/java/design.xml">
+        <exclude name="LawOfDemeter"/>
+        <exclude name="LoosePackageCoupling"/>
+    </rule>
+    
+    <rule ref="category/java/errorprone.xml">
+        <exclude name="BeanMembersShouldSerialize"/>
+        <exclude name="DataflowAnomalyAnalysis"/>
+    </rule>
+    
+    <rule ref="category/java/performance.xml"/>
+    
+    <rule ref="category/java/security.xml"/>
+
+    <!-- Custom Rules for Clean Code -->
+    <rule name="AvoidLongMethods"
+          language="java"
+          message="Method is too long. Consider breaking it into smaller methods (max 20 lines)"
+          class="net.sourceforge.pmd.lang.rule.XPathRule">
+        <description>Methods should be short and focused on a single responsibility</description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value>
+//MethodDeclaration[
+    (count(.//Statement) > 20)
+    and not(./parent::ClassOrInterfaceDeclaration[@Image=".*Test.*"])
+]
+                </value>
+            </property>
+        </properties>
+    </rule>
+
+    <rule name="AvoidLongParameterList"
+          language="java"
+          message="Method has too many parameters. Consider using parameter object or builder pattern"
+          class="net.sourceforge.pmd.lang.rule.XPathRule">
+        <description>Methods with many parameters are hard to understand and maintain</description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value>
+//MethodDeclaration[count(.//FormalParameter) > 5]
+                </value>
+            </property>
+        </properties>
+    </rule>
+
+    <rule name="AvoidDeepNesting"
+          language="java"
+          message="Avoid deep nesting. Consider extracting methods or using guard clauses"
+          class="net.sourceforge.pmd.lang.rule.XPathRule">
+        <description>Deep nesting makes code hard to read and understand</description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value>
+//IfStatement[ancestor::IfStatement[ancestor::IfStatement[ancestor::IfStatement]]]
+                </value>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- DDD Rules -->
+    <rule name="EntityShouldHaveId"
+          language="java"
+          message="Entity should have an ID field annotated with @Id"
+          class="net.sourceforge.pmd.lang.rule.XPathRule">
+        <description>Domain entities should have identity</description>
+        <priority>2</priority>
+        <properties>
+            <property name="xpath">
+                <value>
+//ClassOrInterfaceDeclaration[
+    .//Annotation[@Image='Entity']
+    and not(.//FieldDeclaration//Annotation[@Image='Id'])
+]
+                </value>
+            </property>
+        </properties>
+    </rule>
+
+    <rule name="ValueObjectShouldBeImmutable"
+          language="java"
+          message="Value objects should be immutable - no setter methods allowed"
+          class="net.sourceforge.pmd.lang.rule.XPathRule">
+        <description>Value objects should be immutable for consistency</description>
+        <priority>2</priority>
+        <properties>
+            <property name="xpath">
+                <value>
+//ClassOrInterfaceDeclaration[
+    contains(@Image, 'Value') or contains(@Image, 'VO')
+]//MethodDeclaration[
+    starts-with(@Image, 'set')
+]
+                </value>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- Service Layer Rules -->
+    <rule name="ServiceShouldNotHaveState"
+          language="java"
+          message="Service classes should be stateless - avoid non-final instance fields"
+          class="net.sourceforge.pmd.lang.rule.XPathRule">
+        <description>Services should be stateless to ensure thread safety</description>
+        <priority>2</priority>
+        <properties>
+            <property name="xpath">
+                <value>
+//ClassOrInterfaceDeclaration[
+    .//Annotation[@Image='Service']
+]//FieldDeclaration[
+    not(.//Annotation[@Image='Autowired'])
+    and not(@Final='true')
+    and not(@Static='true')
+]
+                </value>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- Repository Rules -->
+    <rule name="RepositoryShouldExtendJpaRepository"
+          language="java"
+          message="Repository interfaces should extend JpaRepository or CrudRepository"
+          class="net.sourceforge.pmd.lang.rule.XPathRule">
+        <description>Repositories should follow Spring Data conventions</description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value>
+//ClassOrInterfaceDeclaration[
+    .//Annotation[@Image='Repository']
+    and @Interface='true'
+    and not(.//ClassOrInterfaceType[contains(@Image, 'Repository')])
+]
+                </value>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- API Design Rules -->
+    <rule name="RestControllerShouldHaveRequestMapping"
+          language="java"
+          message="RestController should have @RequestMapping at class level"
+          class="net.sourceforge.pmd.lang.rule.XPathRule">
+        <description>REST controllers should define base path</description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value>
+//ClassOrInterfaceDeclaration[
+    .//Annotation[@Image='RestController']
+    and not(.//Annotation[@Image='RequestMapping'])
+]
+                </value>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- Security Rules -->
+    <rule name="AvoidHardcodedSecrets"
+          language="java"
+          message="Avoid hardcoded passwords, keys, or secrets in source code"
+          class="net.sourceforge.pmd.lang.rule.XPathRule">
+        <description>Secrets should be externalized to configuration</description>
+        <priority>1</priority>
+        <properties>
+            <property name="xpath">
+                <value>
+//Literal[
+    contains(lower-case(@Image), 'password')
+    or contains(lower-case(@Image), 'secret')
+    or contains(lower-case(@Image), 'apikey')
+    or contains(lower-case(@Image), 'token')
+][
+    string-length(@Image) > 8
+]
+                </value>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- Performance Rules -->
+    <rule name="AvoidSelectAllInRepository"
+          language="java"
+          message="Avoid SELECT * queries. Be explicit about required fields"
+          class="net.sourceforge.pmd.lang.rule.XPathRule">
+        <description>Select only required fields for better performance</description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value>
+//Annotation[@Image='Query']//Literal[
+    contains(upper-case(@Image), 'SELECT *')
+]
+                </value>
+            </property>
+        </properties>
+    </rule>
+
+</ruleset>
