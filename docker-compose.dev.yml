@@ -1,0 +1,78 @@
+# Development configuration for AI Code Review System
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+version: '3.8'
+
+services:
+  # Override main app for development
+  review-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DEVTOOLS_RESTART_ENABLED: true
+      LOG_LEVEL: DEBUG
+      SPRING_JPA_SHOW_SQL: true
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    volumes:
+      # Mount logs for easier debugging
+      - ./logs:/app/logs
+    ports:
+      - "8084:8080"
+
+  # Enable mock AI service for development
+  ai-service-mock:
+    image: wiremock/wiremock:2.35.0
+    container_name: review-ai-mock
+    ports:
+      - "9081:8080"
+    volumes:
+      - ./docker/wiremock:/home/wiremock
+    networks:
+      - review-network
+    command: ["--global-response-templating", "--verbose"]
+
+  # Add pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: review-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - review-network
+    depends_on:
+      - postgres
+
+  # Redis Commander for Redis management
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: review-redis-commander
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8083:8081"
+    networks:
+      - review-network
+    depends_on:
+      - redis
+
+  # MailHog for email testing
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: review-mailhog
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - review-network
+
+volumes:
+  pgadmin_data:
+    name: review_pgadmin_data

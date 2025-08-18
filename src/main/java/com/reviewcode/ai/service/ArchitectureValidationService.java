@@ -6,15 +6,31 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+import java.util.stream.Collectors;
+import java.util.Arrays;
 
 @Service
 public class ArchitectureValidationService {
     
-    private static final Pattern LONG_METHOD_PATTERN = Pattern.compile("(?s).*public\\s+\\w+.*\\{.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\}");
+    // Enhanced regex patterns for better detection
+    private static final Pattern LONG_METHOD_PATTERN = Pattern.compile("(?s)public\\s+\\w+[^{]*\\{([^{}]*\\{[^{}]*\\}[^{}]*)*[^{}]*\\}");
     private static final Pattern MANY_PARAMETERS_PATTERN = Pattern.compile("\\([^)]*,.*,.*,.*,.*,.*[^)]*\\)");
-    private static final Pattern HARDCODED_SECRET_PATTERN = Pattern.compile("(?i)(password|secret|apikey|token)\\s*=\\s*[\"'][^\"']{8,}[\"']");
+    private static final Pattern HARDCODED_SECRET_PATTERN = Pattern.compile("(?i)(password|secret|apikey|token|key)\\s*[=:]\\s*[\"'][^\"']{8,}[\"']");
     private static final Pattern FIELD_INJECTION_PATTERN = Pattern.compile("@Autowired\\s+private");
     private static final Pattern SELECT_ALL_PATTERN = Pattern.compile("(?i)select\\s+\\*\\s+from");
+    
+    // New patterns for enhanced detection
+    private static final Pattern DEEP_NESTING_PATTERN = Pattern.compile("(?s)if\\s*\\([^{]*\\{[^{}]*if\\s*\\([^{]*\\{[^{}]*if\\s*\\([^{]*\\{[^{}]*if\\s*\\(");
+    private static final Pattern MAGIC_NUMBER_PATTERN = Pattern.compile("\\b(?<!\\.)(?:(?:[2-9]|[1-9][0-9]+)(?:\\.[0-9]+)?)\\b(?!\\s*[)}]|\\s*;\\s*//)");
+    private static final Pattern SQL_INJECTION_PATTERN = Pattern.compile("(?i)(select|insert|update|delete).*\\+.*[\"'].*[\"']");
+    private static final Pattern POOR_NAMING_PATTERN = Pattern.compile("(?:public|private|protected)\\s+\\w+\\s+(get|set|do|handle|process|manage|data|info|obj|temp|var)\\d*\\s*\\(");
+    private static final Pattern EMPTY_CATCH_PATTERN = Pattern.compile("catch\\s*\\([^)]*\\)\\s*\\{\\s*(?://.*)?\\s*\\}");
+    private static final Pattern INSECURE_RANDOM_PATTERN = Pattern.compile("new\\s+Random\\s*\\(");
+    private static final Pattern WEAK_CRYPTO_PATTERN = Pattern.compile("(?i)(DES|MD5|SHA1)[\"']|getInstance\\s*\\(\\s*[\"'](DES|MD5|SHA1)[\"']");
+    private static final Pattern MISSING_VALIDATION_PATTERN = Pattern.compile("@RequestBody\\s+(?!@Valid)\\w+");
+    private static final Pattern EXPOSED_EXCEPTION_PATTERN = Pattern.compile("(?:printStackTrace|getMessage)\\(\\)");
+    private static final Pattern STRING_CONCAT_LOOP_PATTERN = Pattern.compile("(?s)for\\s*\\([^{]*\\{[^{}]*\\w+\\s*\\+=?\\s*\\w+\\s*\\+");
     
     public List<ReviewFinding> validateArchitecturalPrinciples(String fileName, String code) {
         List<ReviewFinding> findings = new ArrayList<>();
@@ -60,6 +76,52 @@ public class ArchitectureValidationService {
                 "Method has too many parameters",
                 "Consider using a parameter object or builder pattern to reduce parameter count.",
                 "Method with many parameters"
+            ));
+        }
+        
+        // Check for deep nesting
+        if (DEEP_NESTING_PATTERN.matcher(code).find()) {
+            findings.add(createFinding(
+                fileName, 0, ReviewFinding.FindingType.KISS_VIOLATION,
+                ReviewFinding.Severity.HIGH,
+                "Deep nesting detected (4+ levels)",
+                "Avoid deep nesting. Use guard clauses, early returns, or extract methods.",
+                "Deep nesting violation"
+            ));
+        }
+        
+        // Check for magic numbers
+        Matcher magicMatcher = MAGIC_NUMBER_PATTERN.matcher(code);
+        if (magicMatcher.find()) {
+            findings.add(createFinding(
+                fileName, getLineNumber(code, magicMatcher.start()),
+                ReviewFinding.FindingType.BEST_PRACTICE,
+                ReviewFinding.Severity.MEDIUM,
+                "Magic number detected: " + magicMatcher.group(),
+                "Extract magic numbers to named constants for better readability.",
+                magicMatcher.group()
+            ));
+        }
+        
+        // Check for poor naming
+        if (POOR_NAMING_PATTERN.matcher(code).find()) {
+            findings.add(createFinding(
+                fileName, 0, ReviewFinding.FindingType.BEST_PRACTICE,
+                ReviewFinding.Severity.MEDIUM,
+                "Poor naming convention detected",
+                "Use descriptive method names that clearly indicate their purpose.",
+                "Vague method names"
+            ));
+        }
+        
+        // Check for string concatenation in loops
+        if (STRING_CONCAT_LOOP_PATTERN.matcher(code).find()) {
+            findings.add(createFinding(
+                fileName, 0, ReviewFinding.FindingType.PERFORMANCE,
+                ReviewFinding.Severity.MEDIUM,
+                "String concatenation in loop detected",
+                "Use StringBuilder for efficient string concatenation in loops.",
+                "Inefficient string concatenation"
             ));
         }
         
@@ -191,6 +253,72 @@ public class ArchitectureValidationService {
             ));
         }
         
+        // Check for SQL injection vulnerabilities
+        if (SQL_INJECTION_PATTERN.matcher(code).find()) {
+            findings.add(createFinding(
+                fileName, 0, ReviewFinding.FindingType.SECURITY,
+                ReviewFinding.Severity.CRITICAL,
+                "Potential SQL injection vulnerability",
+                "Use parameterized queries or prepared statements instead of string concatenation.",
+                "SQL injection risk"
+            ));
+        }
+        
+        // Check for insecure random usage
+        if (INSECURE_RANDOM_PATTERN.matcher(code).find()) {
+            findings.add(createFinding(
+                fileName, 0, ReviewFinding.FindingType.SECURITY,
+                ReviewFinding.Severity.HIGH,
+                "Insecure random number generation",
+                "Use SecureRandom instead of Random for security-sensitive operations.",
+                "Insecure Random usage"
+            ));
+        }
+        
+        // Check for weak cryptography
+        if (WEAK_CRYPTO_PATTERN.matcher(code).find()) {
+            findings.add(createFinding(
+                fileName, 0, ReviewFinding.FindingType.SECURITY,
+                ReviewFinding.Severity.HIGH,
+                "Weak cryptographic algorithm detected",
+                "Use strong cryptographic algorithms like AES, SHA-256, or SHA-3.",
+                "Weak cryptography"
+            ));
+        }
+        
+        // Check for missing input validation
+        if (MISSING_VALIDATION_PATTERN.matcher(code).find()) {
+            findings.add(createFinding(
+                fileName, 0, ReviewFinding.FindingType.SECURITY,
+                ReviewFinding.Severity.MEDIUM,
+                "Missing input validation",
+                "Add @Valid annotation to validate input data automatically.",
+                "Missing validation"
+            ));
+        }
+        
+        // Check for exposed exception information
+        if (EXPOSED_EXCEPTION_PATTERN.matcher(code).find()) {
+            findings.add(createFinding(
+                fileName, 0, ReviewFinding.FindingType.SECURITY,
+                ReviewFinding.Severity.MEDIUM,
+                "Exception information exposure",
+                "Avoid exposing internal exception details to clients.",
+                "Information disclosure"
+            ));
+        }
+        
+        // Check for empty catch blocks
+        if (EMPTY_CATCH_PATTERN.matcher(code).find()) {
+            findings.add(createFinding(
+                fileName, 0, ReviewFinding.FindingType.BEST_PRACTICE,
+                ReviewFinding.Severity.HIGH,
+                "Empty catch block detected",
+                "Handle exceptions properly or at least log them for debugging.",
+                "Empty exception handling"
+            ));
+        }
+        
         // Check for SELECT * queries
         if (SELECT_ALL_PATTERN.matcher(code).find()) {
             findings.add(createFinding(
@@ -235,5 +363,14 @@ public class ArchitectureValidationService {
         finding.setCodeSnippet(codeSnippet);
         finding.setRuleId("ARCH_" + type.name());
         return finding;
+    }
+    
+    private int getLineNumber(String code, int position) {
+        if (position < 0 || position >= code.length()) {
+            return 1;
+        }
+        
+        String beforePosition = code.substring(0, position);
+        return (int) beforePosition.chars().filter(ch -> ch == '\n').count() + 1;
     }
 }

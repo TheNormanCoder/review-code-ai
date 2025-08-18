@@ -1,0 +1,192 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: review-postgres
+    environment:
+      POSTGRES_DB: reviewdb
+      POSTGRES_USER: review_user
+      POSTGRES_PASSWORD: review_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - review-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U review_user -d reviewdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis for Caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: review-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - review-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # AI Code Review Application
+  review-app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: review-app
+    environment:
+      # Database Configuration
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/reviewdb
+      SPRING_DATASOURCE_USERNAME: review_user
+      SPRING_DATASOURCE_PASSWORD: review_password
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+      
+      # Redis Configuration
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      
+      # AI Service Configuration
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai-service:8080}
+      AI_API_KEY: ${AI_API_KEY:-your-api-key-here}
+      AI_TIMEOUT: ${AI_TIMEOUT:-30000}
+      
+      # GitHub Configuration
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-your-github-token}
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-your-webhook-secret}
+      
+      # Application Configuration
+      SPRING_PROFILES_ACTIVE: docker
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      
+      # JVM Configuration for container
+      JAVA_OPTS: >-
+        -XX:+UseContainerSupport
+        -XX:MaxRAMPercentage=75.0
+        -XX:+UseZGC
+        -XX:+UseStringDeduplication
+        -XX:+OptimizeStringConcat
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:HeapDumpPath=/tmp/heapdump.hprof
+        --enable-preview
+    ports:
+      - "8084:8080"
+    volumes:
+      - app_logs:/app/logs
+      - ./config:/app/config:ro
+    networks:
+      - review-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+
+  # Nginx Reverse Proxy (for production)
+  nginx:
+    image: nginx:alpine
+    container_name: review-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      - review-network
+    depends_on:
+      - review-app
+    profiles:
+      - production
+    restart: unless-stopped
+
+  # Prometheus (monitoring)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: review-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - review-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    profiles:
+      - monitoring
+    restart: unless-stopped
+
+  # Grafana (metrics visualization)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: review-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - review-network
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+    restart: unless-stopped
+
+networks:
+  review-network:
+    driver: bridge
+    name: review-network
+
+volumes:
+  postgres_data:
+    name: review_postgres_data
+  redis_data:
+    name: review_redis_data
+  app_logs:
+    name: review_app_logs
+  nginx_logs:
+    name: review_nginx_logs
+  prometheus_data:
+    name: review_prometheus_data
+  grafana_data:
+    name: review_grafana_data

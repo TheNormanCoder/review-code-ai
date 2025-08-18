@@ -1,0 +1,179 @@
+# Production configuration for AI Code Review System
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+
+version: '3.8'
+
+services:
+  # Production app configuration
+  review-app:
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      LOG_LEVEL: WARN
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_JPA_SHOW_SQL: false
+      # Production tuning with Java 21 optimizations
+      JAVA_OPTS: >-
+        -XX:+UseContainerSupport
+        -XX:MaxRAMPercentage=75.0
+        -XX:+UseZGC
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:HeapDumpPath=/tmp/heapdump.hprof
+        -XX:+UseStringDeduplication
+        -XX:+OptimizeStringConcat
+        -XX:+UnlockExperimentalVMOptions
+        -XX:+UseLargePages
+        -XX:+AlwaysPreTouch
+        --enable-preview
+        -Djava.security.egd=file:/dev/./urandom
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    # Remove debug ports
+    ports:
+      - "8080:8080"
+
+  # Enable nginx for production
+  nginx:
+    profiles: []  # Remove profile restriction
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+
+  # Production database configuration
+  postgres:
+    environment:
+      # Additional production settings
+      POSTGRES_SHARED_PRELOAD_LIBRARIES: pg_stat_statements
+      POSTGRES_MAX_CONNECTIONS: 200
+      POSTGRES_SHARED_BUFFERS: 256MB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 1GB
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    # Production backup strategy
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/backup:/backup
+
+  # Production Redis configuration
+  redis:
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # Enable monitoring for production
+  prometheus:
+    profiles: []  # Remove profile restriction
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  grafana:
+    profiles: []  # Remove profile restriction
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+
+  # Log aggregation (ELK stack - optional)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    container_name: review-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - review-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+    profiles:
+      - logging
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.8.0
+    container_name: review-logstash
+    volumes:
+      - ./docker/logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - app_logs:/app/logs:ro
+    networks:
+      - review-network
+    depends_on:
+      - elasticsearch
+    profiles:
+      - logging
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.8.0
+    container_name: review-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    networks:
+      - review-network
+    depends_on:
+      - elasticsearch
+    profiles:
+      - logging
+
+  # Backup service
+  backup:
+    image: postgres:15-alpine
+    container_name: review-backup
+    environment:
+      PGPASSWORD: review_password
+    volumes:
+      - ./docker/backup:/backup
+      - ./docker/scripts:/scripts:ro
+    networks:
+      - review-network
+    depends_on:
+      - postgres
+    command: >
+      sh -c "
+        while true; do
+          sleep 24h;
+          /scripts/backup.sh;
+        done
+      "
+    profiles:
+      - backup
+
+volumes:
+  elasticsearch_data:
+    name: review_elasticsearch_data

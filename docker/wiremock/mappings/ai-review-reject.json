@@ -1,0 +1,59 @@
+{
+  "id": "ai-review-reject",
+  "request": {
+    "method": "POST",
+    "urlPattern": "/api/review",
+    "bodyPatterns": [
+      {
+        "contains": "BadCode"
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "decision": "CHANGES_REQUESTED",
+      "score": 25,
+      "findings": [
+        {
+          "type": "SECURITY",
+          "severity": "CRITICAL",
+          "description": "SQL injection vulnerability detected",
+          "fileName": "BadCode.java",
+          "lineNumber": 15,
+          "suggestion": "Use parameterized queries or prepared statements.",
+          "ruleId": "SQL_INJECTION"
+        },
+        {
+          "type": "SECURITY", 
+          "severity": "HIGH",
+          "description": "Hardcoded password found",
+          "fileName": "BadCode.java",
+          "lineNumber": 8,
+          "suggestion": "Store passwords in secure configuration or environment variables.",
+          "ruleId": "HARDCODED_SECRET"
+        },
+        {
+          "type": "PERFORMANCE",
+          "severity": "MEDIUM",
+          "description": "Potential N+1 query problem",
+          "fileName": "BadCode.java", 
+          "lineNumber": 32,
+          "suggestion": "Use JOIN or batch loading to avoid N+1 queries.",
+          "ruleId": "N_PLUS_ONE"
+        }
+      ],
+      "comments": [
+        "Critical security vulnerabilities found that must be addressed before merging.",
+        "Performance issues detected that could impact application scalability."
+      ],
+      "reviewTime": "{{now format='yyyy-MM-dd HH:mm:ss'}}",
+      "reviewerId": "ai-mock-service",
+      "confidence": 0.98
+    },
+    "transformers": ["response-template"]
+  }
+}

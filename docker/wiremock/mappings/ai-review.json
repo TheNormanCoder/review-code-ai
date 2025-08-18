@@ -1,0 +1,36 @@
+{
+  "id": "ai-review-success",
+  "request": {
+    "method": "POST",
+    "urlPattern": "/api/review"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "decision": "APPROVED",
+      "score": 85,
+      "findings": [
+        {
+          "type": "BEST_PRACTICE",
+          "severity": "MEDIUM",
+          "description": "Method could be shorter for better readability",
+          "fileName": "{{jsonPath request.body '$.files[0]'}}",
+          "lineNumber": 42,
+          "suggestion": "Consider breaking this method into smaller, focused methods.",
+          "ruleId": "METHOD_LENGTH"
+        }
+      ],
+      "comments": [
+        "Code quality looks good overall!",
+        "Consider minor refactoring suggestions."
+      ],
+      "reviewTime": "{{now format='yyyy-MM-dd HH:mm:ss'}}",
+      "reviewerId": "ai-mock-service",
+      "confidence": 0.95
+    },
+    "transformers": ["response-template"]
+  }
+}
