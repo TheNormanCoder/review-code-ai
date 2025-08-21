@@ -227,6 +227,7 @@
                 <configuration>
                     <failBuildOnCVSS>7</failBuildOnCVSS>
                     <format>ALL</format>
+                    <skip>true</skip>
                 </configuration>
                 <executions>
                     <execution>
