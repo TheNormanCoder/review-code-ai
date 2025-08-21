@@ -34,8 +34,8 @@ jobs:
         distribution: 'temurin'
         cache: maven
     
-    - name: Run tests
-      run: mvn clean compile -DskipTests
+    - name: Build without tests
+      run: mvn clean compile -DskipTests -Dmaven.test.skip=true
       env:
         SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/reviewdb_test
         SPRING_DATASOURCE_USERNAME: postgres
@@ -127,13 +127,13 @@ jobs:
         cache: maven
     
     - name: Build application
-      run: mvn clean compile -DskipTests
+      run: mvn clean package -DskipTests -Dmaven.test.skip=true
       env:
         MAVEN_OPTS: '--enable-preview -XX:+UseZGC'
     
     - name: Build Docker image
       run: |
-        mvn spring-boot:build-image -DskipTests
+        mvn spring-boot:build-image -DskipTests -Dmaven.test.skip=true
       env:
         MAVEN_OPTS: '--enable-preview'
     

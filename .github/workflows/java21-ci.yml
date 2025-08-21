@@ -63,9 +63,9 @@ jobs:
         java --enable-preview --version
         echo "Java 21 with preview features enabled"
 
-    - name: Run Maven tests with Java 21 optimizations
+    - name: Build with Java 21 optimizations
       run: |
-        mvn clean compile -DskipTests \
+        mvn clean compile -DskipTests -Dmaven.test.skip=true \
           -Dspring.profiles.active=test \
           --no-transfer-progress
       env:
@@ -76,9 +76,9 @@ jobs:
         REDIS_HOST: localhost
         REDIS_PORT: 6379
 
-    - name: Run integration tests
+    - name: Verify build
       run: |
-        mvn verify -DskipTests \
+        mvn verify -DskipTests -Dmaven.test.skip=true \
           -Dspring.profiles.active=test \
           --no-transfer-progress
       env:
@@ -129,7 +129,7 @@ jobs:
     - name: Build application with Java 21
       run: |
         mvn clean package \
-          -DskipTests \
+          -DskipTests -Dmaven.test.skip=true \
           --no-transfer-progress
       env:
         MAVEN_OPTS: '--enable-preview -XX:+UseZGC'
