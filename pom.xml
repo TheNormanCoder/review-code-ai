@@ -223,10 +223,11 @@
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
-                <version>8.4.2</version>
+                <version>12.1.0</version>
                 <configuration>
                     <failBuildOnCVSS>7</failBuildOnCVSS>
                     <format>ALL</format>
+                    <nvdApiKey>${NVD_API_KEY}</nvdApiKey>
                 </configuration>
                 <executions>
                     <execution>
