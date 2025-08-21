@@ -12,7 +12,7 @@ Sistema di code review automatizzato con integrazione AI tramite MCP (Model Cont
 ## 🚀 Quick Start
 
 ### Prerequisiti
-- Java 17+
+- Java 21+
 - Maven 3.8+
 - Docker (opzionale)
 
