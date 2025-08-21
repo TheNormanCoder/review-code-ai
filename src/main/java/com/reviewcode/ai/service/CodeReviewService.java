@@ -2,6 +2,7 @@ package com.reviewcode.ai.service;
 
 import com.reviewcode.ai.model.CodeReview;
 import com.reviewcode.ai.model.PullRequest;
+import com.reviewcode.ai.model.ReviewSuggestion;
 import com.reviewcode.ai.repository.CodeReviewRepository;
 import com.reviewcode.ai.repository.PullRequestRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,14 +21,17 @@ public class CodeReviewService {
     private final PullRequestRepository pullRequestRepository;
     private final CodeReviewRepository codeReviewRepository;
     private final AiReviewService aiReviewService;
+    private final ReviewSuggestionService reviewSuggestionService;
     
     @Autowired
     public CodeReviewService(PullRequestRepository pullRequestRepository,
                            CodeReviewRepository codeReviewRepository,
-                           AiReviewService aiReviewService) {
+                           AiReviewService aiReviewService,
+                           ReviewSuggestionService reviewSuggestionService) {
         this.pullRequestRepository = pullRequestRepository;
         this.codeReviewRepository = codeReviewRepository;
         this.aiReviewService = aiReviewService;
+        this.reviewSuggestionService = reviewSuggestionService;
     }
     
     public PullRequest createPullRequest(PullRequest pullRequest) {
@@ -55,7 +59,7 @@ public class CodeReviewService {
         return pullRequestRepository.findByStatus(status);
     }
     
-    public Mono<CodeReview> triggerAiReview(Long pullRequestId, List<String> filesToReview) {
+    public Mono<List<ReviewSuggestion>> triggerAiSuggestions(Long pullRequestId, List<String> filesToReview) {
         Optional<PullRequest> pullRequestOpt = pullRequestRepository.findById(pullRequestId);
         
         if (pullRequestOpt.isEmpty()) {
@@ -66,12 +70,38 @@ public class CodeReviewService {
         pullRequest.setReviewStatus(PullRequest.ReviewStatus.IN_PROGRESS);
         pullRequestRepository.save(pullRequest);
         
-        return aiReviewService.performAiReview(pullRequest, filesToReview)
+        return aiReviewService.generateSuggestions(pullRequest, filesToReview)
+            .map(suggestions -> {
+                if (!suggestions.isEmpty()) {
+                    pullRequest.setReviewStatus(PullRequest.ReviewStatus.SUGGESTIONS_PENDING);
+                    pullRequestRepository.save(pullRequest);
+                }
+                return suggestions;
+            });
+    }
+    
+    public Mono<CodeReview> triggerFinalReview(Long pullRequestId, List<String> filesToReview) {
+        Optional<PullRequest> pullRequestOpt = pullRequestRepository.findById(pullRequestId);
+        
+        if (pullRequestOpt.isEmpty()) {
+            return Mono.error(new IllegalArgumentException("Pull request not found"));
+        }
+        
+        PullRequest pullRequest = pullRequestOpt.get();
+        pullRequest.setReviewStatus(PullRequest.ReviewStatus.IN_PROGRESS);
+        pullRequestRepository.save(pullRequest);
+        
+        return aiReviewService.performFinalReview(pullRequest, filesToReview)
             .map(review -> {
                 CodeReview savedReview = codeReviewRepository.save(review);
                 updatePullRequestAfterReview(pullRequest, savedReview);
                 return savedReview;
             });
+    }
+    
+    @Deprecated
+    public Mono<CodeReview> triggerAiReview(Long pullRequestId, List<String> filesToReview) {
+        return triggerFinalReview(pullRequestId, filesToReview);
     }
     
     public CodeReview addHumanReview(Long pullRequestId, CodeReview review) {

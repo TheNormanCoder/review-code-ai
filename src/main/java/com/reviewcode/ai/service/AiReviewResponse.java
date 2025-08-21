@@ -27,6 +27,7 @@ public class AiReviewResponse {
         private String description;
         private String suggestion;
         private String codeSnippet;
+        private String proposedCode;
         private String ruleId;
     }
 }

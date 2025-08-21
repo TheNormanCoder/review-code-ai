@@ -69,7 +69,7 @@ public class PullRequest {
     }
     
     public enum ReviewStatus {
-        PENDING, IN_PROGRESS, APPROVED, CHANGES_REQUESTED, REJECTED
+        PENDING, IN_PROGRESS, SUGGESTIONS_PENDING, APPROVED, CHANGES_REQUESTED, REJECTED
     }
     
     @PreUpdate

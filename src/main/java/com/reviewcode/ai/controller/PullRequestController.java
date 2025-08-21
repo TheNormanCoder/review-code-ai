@@ -2,6 +2,7 @@ package com.reviewcode.ai.controller;
 
 import com.reviewcode.ai.model.CodeReview;
 import com.reviewcode.ai.model.PullRequest;
+import com.reviewcode.ai.model.ReviewSuggestion;
 import com.reviewcode.ai.service.CodeReviewService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +56,27 @@ public class PullRequestController {
             .orElse(ResponseEntity.notFound().build());
     }
     
+    @PostMapping("/{id}/ai-suggestions")
+    public Mono<ResponseEntity<List<ReviewSuggestion>>> triggerAiSuggestions(
+            @PathVariable Long id,
+            @RequestBody List<String> filesToReview) {
+        
+        return codeReviewService.triggerAiSuggestions(id, filesToReview)
+            .map(suggestions -> ResponseEntity.ok(suggestions))
+            .onErrorReturn(ResponseEntity.badRequest().build());
+    }
+    
+    @PostMapping("/{id}/ai-final-review")
+    public Mono<ResponseEntity<CodeReview>> triggerFinalReview(
+            @PathVariable Long id,
+            @RequestBody List<String> filesToReview) {
+        
+        return codeReviewService.triggerFinalReview(id, filesToReview)
+            .map(review -> ResponseEntity.ok(review))
+            .onErrorReturn(ResponseEntity.badRequest().build());
+    }
+    
+    @Deprecated
     @PostMapping("/{id}/ai-review")
     public Mono<ResponseEntity<CodeReview>> triggerAiReview(
             @PathVariable Long id,

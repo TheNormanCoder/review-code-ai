@@ -17,26 +17,56 @@ public class AiReviewService {
     
     private final WebClient aiWebClient;
     private final AiConfiguration aiConfig;
+    private final ReviewSuggestionService reviewSuggestionService;
     
     @Autowired
-    public AiReviewService(WebClient aiWebClient, AiConfiguration aiConfig) {
+    public AiReviewService(WebClient aiWebClient, 
+                          AiConfiguration aiConfig,
+                          ReviewSuggestionService reviewSuggestionService) {
         this.aiWebClient = aiWebClient;
         this.aiConfig = aiConfig;
+        this.reviewSuggestionService = reviewSuggestionService;
     }
     
-    public Mono<CodeReview> performAiReview(PullRequest pullRequest, List<String> filesToReview) {
+    public Mono<List<ReviewSuggestion>> generateSuggestions(PullRequest pullRequest, List<String> filesToReview) {
         Map<String, Object> reviewRequest = Map.of(
             "pullRequestId", pullRequest.getId(),
             "title", pullRequest.getTitle(),
             "description", pullRequest.getDescription(),
             "files", filesToReview,
             "author", pullRequest.getAuthor(),
-            "repositoryUrl", pullRequest.getRepositoryUrl()
+            "repositoryUrl", pullRequest.getRepositoryUrl(),
+            "mode", "suggestions"
         );
         
         return aiWebClient
             .post()
-            .uri("/api/review")
+            .uri("/api/review/suggestions")
+            .bodyValue(reviewRequest)
+            .retrieve()
+            .bodyToMono(AiReviewResponse.class)
+            .timeout(Duration.ofMillis(aiConfig.getMcp().getTimeout()))
+            .map(response -> reviewSuggestionService.createSuggestionsFromAiResponse(pullRequest, response))
+            .onErrorResume(error -> {
+                System.err.println("AI Suggestions generation failed: " + error.getMessage());
+                return Mono.just(List.of());
+            });
+    }
+    
+    public Mono<CodeReview> performFinalReview(PullRequest pullRequest, List<String> filesToReview) {
+        Map<String, Object> reviewRequest = Map.of(
+            "pullRequestId", pullRequest.getId(),
+            "title", pullRequest.getTitle(),
+            "description", pullRequest.getDescription(),
+            "files", filesToReview,
+            "author", pullRequest.getAuthor(),
+            "repositoryUrl", pullRequest.getRepositoryUrl(),
+            "mode", "final-review"
+        );
+        
+        return aiWebClient
+            .post()
+            .uri("/api/review/final")
             .bodyValue(reviewRequest)
             .retrieve()
             .bodyToMono(AiReviewResponse.class)
@@ -48,10 +78,15 @@ public class AiReviewService {
                 errorReview.setReviewer("AI-MCP");
                 errorReview.setReviewerType(CodeReview.ReviewerType.AI_MCP);
                 errorReview.setDecision(CodeReview.ReviewDecision.REJECTED);
-                errorReview.setSummary("AI Review failed: " + error.getMessage());
+                errorReview.setSummary("AI Final Review failed: " + error.getMessage());
                 errorReview.setCreatedAt(LocalDateTime.now());
                 return Mono.just(errorReview);
             });
+    }
+    
+    @Deprecated
+    public Mono<CodeReview> performAiReview(PullRequest pullRequest, List<String> filesToReview) {
+        return performFinalReview(pullRequest, filesToReview);
     }
     
     private CodeReview mapToCodeReview(PullRequest pullRequest, AiReviewResponse response) {
