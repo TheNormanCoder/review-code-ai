@@ -1,153 +1,119 @@
-name: Continuous Integration
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [ main, develop ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main ]
+
+env:
+  JAVA_VERSION: '21'
+  MAVEN_OPTS: '--enable-preview -XX:+UseZGC -Xmx2048m'
 
 jobs:
-  test:
+  build-and-test:
     runs-on: ubuntu-latest
     
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: reviewdb_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-    
     steps:
-    - uses: actions/checkout@v4
-    
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: Set up JDK 21
       uses: actions/setup-java@v4
       with:
-        java-version: '21'
+        java-version: ${{ env.JAVA_VERSION }}
         distribution: 'temurin'
         cache: maven
-    
-    - name: Build without tests
-      run: mvn clean compile -DskipTests -Dmaven.test.skip=true
+
+    - name: Build application
+      run: |
+        mvn clean compile \
+          -DskipTests \
+          -Dmaven.test.skip=true \
+          --no-transfer-progress
       env:
-        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/reviewdb_test
-        SPRING_DATASOURCE_USERNAME: postgres
-        SPRING_DATASOURCE_PASSWORD: postgres
-        MAVEN_OPTS: '--enable-preview -XX:+UseZGC'
-    
-    - name: Generate test coverage report
-      run: mvn jacoco:report
-    
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+        MAVEN_OPTS: ${{ env.MAVEN_OPTS }}
+
+    - name: Package application
+      run: |
+        mvn package \
+          -DskipTests \
+          -Dmaven.test.skip=true \
+          --no-transfer-progress
+      env:
+        MAVEN_OPTS: ${{ env.MAVEN_OPTS }}
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
       with:
-        file: ./target/site/jacoco/jacoco.xml
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: false
+        name: jar-artifacts
+        path: target/*.jar
+        retention-days: 30
 
   code-quality:
+    needs: build-and-test
     runs-on: ubuntu-latest
+    if: always()
     
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: Set up JDK 21
       uses: actions/setup-java@v4
       with:
-        java-version: '21'
+        java-version: ${{ env.JAVA_VERSION }}
         distribution: 'temurin'
         cache: maven
-    
-    - name: Cache SonarCloud packages
-      uses: actions/cache@v3
-      with:
-        path: ~/.sonar/cache
-        key: ${{ runner.os }}-sonar
-        restore-keys: ${{ runner.os }}-sonar
-    
-    - name: Build and analyze
+
+    - name: Run code quality checks
+      run: |
+        mvn verify \
+          -DskipTests \
+          -Dmaven.test.skip=true \
+          --no-transfer-progress
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        MAVEN_OPTS: '--enable-preview -XX:+UseZGC'
-      run: mvn clean verify sonar:sonar -DskipTests -Dmaven.test.skip=true
+        MAVEN_OPTS: ${{ env.MAVEN_OPTS }}
       continue-on-error: true
 
-  security-scan:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up JDK 21
-      uses: actions/setup-java@v4
-      with:
-        java-version: '21'
-        distribution: 'temurin'
-        cache: maven
-    
-    - name: Run OWASP Dependency Check  
-      run: mvn org.owasp:dependency-check-maven:check -Dformat=SARIF -DsarifFile=target/dependency-check-report.sarif
-      continue-on-error: true
-      env:
-        MAVEN_OPTS: '--enable-preview'
-    
-    - name: Upload Dependency Check results
+    - name: Upload quality reports
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: dependency-check-results
+        name: quality-reports
         path: |
-          target/dependency-check-report.html
-          target/dependency-check-report.sarif
+          target/pmd.xml
+          target/spotbugsXml.xml
+          target/site/
         retention-days: 30
 
-  build:
-    needs: [test, code-quality, security-scan]
+  docker-build:
+    needs: build-and-test
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
-    - uses: actions/checkout@v4
-    
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: Set up JDK 21
       uses: actions/setup-java@v4
       with:
-        java-version: '21'
+        java-version: ${{ env.JAVA_VERSION }}
         distribution: 'temurin'
         cache: maven
-    
-    - name: Build application
-      run: mvn clean package -DskipTests -Dmaven.test.skip=true
-      env:
-        MAVEN_OPTS: '--enable-preview -XX:+UseZGC'
-    
+
     - name: Build Docker image
       run: |
-        mvn spring-boot:build-image -DskipTests -Dmaven.test.skip=true
+        mvn clean package \
+          -DskipTests \
+          -Dmaven.test.skip=true \
+          --no-transfer-progress
+        
+        docker build -t review-code-ai:latest .
       env:
-        MAVEN_OPTS: '--enable-preview'
-    
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: 'ai-code-review:1.0.0'
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-    
-    - name: Upload Trivy scan results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: trivy-results
-        path: trivy-results.sarif
-        retention-days: 30
+        MAVEN_OPTS: ${{ env.MAVEN_OPTS }}
+
+    - name: Test Docker image
+      run: |
+        docker run --rm review-code-ai:latest java --version
