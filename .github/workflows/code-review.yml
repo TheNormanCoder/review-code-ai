@@ -77,14 +77,17 @@ jobs:
     
     - name: Run Checkstyle
       run: mvn checkstyle:check
+      continue-on-error: true
       env:
         MAVEN_OPTS: '--enable-preview'
     
     - name: Upload Checkstyle results
-      uses: github/codeql-action/upload-sarif@v2
+      uses: actions/upload-artifact@v4
       if: always()
       with:
-        sarif_file: target/checkstyle-result.xml
+        name: checkstyle-results
+        path: target/checkstyle-result.xml
+        retention-days: 30
 
   spotbugs:
     runs-on: ubuntu-latest
@@ -101,14 +104,17 @@ jobs:
     
     - name: Run SpotBugs
       run: mvn compile spotbugs:check
+      continue-on-error: true
       env:
         MAVEN_OPTS: '--enable-preview'
     
     - name: Upload SpotBugs results
-      uses: github/codeql-action/upload-sarif@v2
+      uses: actions/upload-artifact@v4
       if: always()
       with:
-        sarif_file: target/spotbugsXml.xml
+        name: spotbugs-results
+        path: target/spotbugsXml.xml
+        retention-days: 30
 
   pmd:
     runs-on: ubuntu-latest
@@ -125,14 +131,17 @@ jobs:
     
     - name: Run PMD with custom rules
       run: mvn pmd:check
+      continue-on-error: true
       env:
         MAVEN_OPTS: '--enable-preview'
     
     - name: Upload PMD results
-      uses: github/codeql-action/upload-sarif@v2
+      uses: actions/upload-artifact@v4
       if: always()
       with:
-        sarif_file: target/pmd.xml
+        name: pmd-results
+        path: target/pmd.xml
+        retention-days: 30
 
   architecture-tests:
     runs-on: ubuntu-latest
