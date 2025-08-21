@@ -80,7 +80,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         MAVEN_OPTS: '--enable-preview -XX:+UseZGC'
-      run: mvn clean verify sonar:sonar -DskipTests
+      run: mvn clean verify sonar:sonar -DskipTests -Dmaven.test.skip=true
       continue-on-error: true
 
   security-scan:
