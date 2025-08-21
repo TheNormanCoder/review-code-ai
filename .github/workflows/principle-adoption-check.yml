@@ -26,7 +26,7 @@ jobs:
         cache: maven
     
     - name: Build application
-      run: mvn clean compile -DskipTests -Dmaven.test.skip=true
+      run: mvn clean compile -pl ai-review-core -DskipTests -Dmaven.test.skip=true
       env:
         MAVEN_OPTS: '--enable-preview'
     
@@ -39,14 +39,14 @@ jobs:
         echo "## 🏗️ SOLID Principles Analysis" >> $GITHUB_STEP_SUMMARY
         
         # Single Responsibility Principle
-        SRP_VIOLATIONS=$(grep -r "class.*{" src/main/java | wc -l)
-        LARGE_CLASSES=$(find src/main/java -name "*.java" -exec wc -l {} + | awk '$1 > 300 {print $2}' | wc -l)
+        SRP_VIOLATIONS=$(grep -r "class.*{" ai-review-core/src/main/java | wc -l)
+        LARGE_CLASSES=$(find ai-review-core/src/main/java -name "*.java" -exec wc -l {} + | awk '$1 > 300 {print $2}' | wc -l)
         echo "### Single Responsibility Principle" >> $GITHUB_STEP_SUMMARY
         echo "- Large classes (>300 lines): $LARGE_CLASSES" >> $GITHUB_STEP_SUMMARY
         
         # Dependency Injection
-        FIELD_INJECTION=$(grep -r "@Autowired.*private" src/main/java | wc -l)
-        CONSTRUCTOR_INJECTION=$(grep -r "@Autowired.*public.*(" src/main/java | wc -l)
+        FIELD_INJECTION=$(grep -r "@Autowired.*private" ai-review-core/src/main/java | wc -l)
+        CONSTRUCTOR_INJECTION=$(grep -r "@Autowired.*public.*(" ai-review-core/src/main/java | wc -l)
         echo "### Dependency Inversion Principle" >> $GITHUB_STEP_SUMMARY
         echo "- Field injection (avoid): $FIELD_INJECTION" >> $GITHUB_STEP_SUMMARY
         echo "- Constructor injection (preferred): $CONSTRUCTOR_INJECTION" >> $GITHUB_STEP_SUMMARY
@@ -60,12 +60,12 @@ jobs:
         echo "## 🧹 Clean Code Analysis" >> $GITHUB_STEP_SUMMARY
         
         # Method length analysis
-        LONG_METHODS=$(grep -r "public.*{" src/main/java -A 50 | grep -E "^\s*}" | wc -l)
+        LONG_METHODS=$(grep -r "public.*{" ai-review-core/src/main/java -A 50 | grep -E "^\s*}" | wc -l)
         echo "### Method Complexity" >> $GITHUB_STEP_SUMMARY
         echo "- Methods analyzed: $LONG_METHODS" >> $GITHUB_STEP_SUMMARY
         
         # Naming conventions
-        BAD_NAMES=$(grep -r "String str\|int i\|List list" src/main/java | wc -l)
+        BAD_NAMES=$(grep -r "String str\|int i\|List list" ai-review-core/src/main/java | wc -l)
         echo "### Naming Conventions" >> $GITHUB_STEP_SUMMARY
         echo "- Non-descriptive variable names: $BAD_NAMES" >> $GITHUB_STEP_SUMMARY
         
@@ -74,8 +74,8 @@ jobs:
         fi
         
         # Comments vs code ratio
-        COMMENT_LINES=$(grep -r "//" src/main/java | wc -l)
-        CODE_LINES=$(find src/main/java -name "*.java" -exec cat {} \; | grep -v "^\s*$" | wc -l)
+        COMMENT_LINES=$(grep -r "//" ai-review-core/src/main/java | wc -l)
+        CODE_LINES=$(find ai-review-core/src/main/java -name "*.java" -exec cat {} \; | grep -v "^\s*$" | wc -l)
         COMMENT_RATIO=$((COMMENT_LINES * 100 / CODE_LINES))
         echo "- Comment ratio: $COMMENT_RATIO%" >> $GITHUB_STEP_SUMMARY
     
@@ -84,26 +84,26 @@ jobs:
         echo "## 🎯 Domain-Driven Design Analysis" >> $GITHUB_STEP_SUMMARY
         
         # Entity analysis
-        ENTITIES=$(grep -r "@Entity" src/main/java | wc -l)
-        ENTITIES_WITH_ID=$(grep -r -l "@Entity" src/main/java | xargs grep -l "@Id" | wc -l)
+        ENTITIES=$(grep -r "@Entity" ai-review-core/src/main/java | wc -l)
+        ENTITIES_WITH_ID=$(grep -r -l "@Entity" ai-review-core/src/main/java | xargs grep -l "@Id" | wc -l)
         echo "### Domain Entities" >> $GITHUB_STEP_SUMMARY
         echo "- Total entities: $ENTITIES" >> $GITHUB_STEP_SUMMARY
         echo "- Entities with proper ID: $ENTITIES_WITH_ID" >> $GITHUB_STEP_SUMMARY
         
         # Value Objects
-        VALUE_OBJECTS=$(find src/main/java -name "*Value*.java" -o -name "*VO.java" | wc -l)
+        VALUE_OBJECTS=$(find ai-review-core/src/main/java -name "*Value*.java" -o -name "*VO.java" | wc -l)
         echo "### Value Objects" >> $GITHUB_STEP_SUMMARY
         echo "- Value objects identified: $VALUE_OBJECTS" >> $GITHUB_STEP_SUMMARY
         
         # Services
-        DOMAIN_SERVICES=$(find src/main/java -path "*/domain/*" -name "*Service.java" | wc -l)
-        APPLICATION_SERVICES=$(find src/main/java -path "*/service/*" -name "*Service.java" | wc -l)
+        DOMAIN_SERVICES=$(find ai-review-core/src/main/java -path "*/domain/*" -name "*Service.java" | wc -l)
+        APPLICATION_SERVICES=$(find ai-review-core/src/main/java -path "*/service/*" -name "*Service.java" | wc -l)
         echo "### Domain Services" >> $GITHUB_STEP_SUMMARY
         echo "- Domain services: $DOMAIN_SERVICES" >> $GITHUB_STEP_SUMMARY
         echo "- Application services: $APPLICATION_SERVICES" >> $GITHUB_STEP_SUMMARY
         
         # Anemic model detection
-        GETTER_SETTER_ONLY=$(grep -r -l "public.*get\|public.*set" src/main/java | wc -l)
+        GETTER_SETTER_ONLY=$(grep -r -l "public.*get\|public.*set" ai-review-core/src/main/java | wc -l)
         echo "### Rich vs Anemic Models" >> $GITHUB_STEP_SUMMARY
         echo "- Classes with getters/setters: $GETTER_SETTER_ONLY" >> $GITHUB_STEP_SUMMARY
     
@@ -112,8 +112,8 @@ jobs:
         echo "## 🧪 Testing Practices Analysis" >> $GITHUB_STEP_SUMMARY
         
         # Test coverage (placeholder - would need actual coverage tool)
-        TEST_FILES=$(find src/test/java -name "*Test.java" | wc -l)
-        MAIN_FILES=$(find src/main/java -name "*.java" | wc -l)
+        TEST_FILES=$(find ai-review-core/src/test/java -name "*Test.java" | wc -l)
+        MAIN_FILES=$(find ai-review-core/src/main/java -name "*.java" | wc -l)
         TEST_RATIO=$((TEST_FILES * 100 / MAIN_FILES))
         echo "### Test Coverage" >> $GITHUB_STEP_SUMMARY
         echo "- Test files: $TEST_FILES" >> $GITHUB_STEP_SUMMARY
@@ -121,14 +121,14 @@ jobs:
         echo "- Test ratio: $TEST_RATIO%" >> $GITHUB_STEP_SUMMARY
         
         # Unit vs Integration tests
-        UNIT_TESTS=$(grep -r "@Test" src/test/java | wc -l)
-        INTEGRATION_TESTS=$(grep -r "@SpringBootTest\|@DataJpaTest\|@WebMvcTest" src/test/java | wc -l)
+        UNIT_TESTS=$(grep -r "@Test" ai-review-core/src/test/java | wc -l)
+        INTEGRATION_TESTS=$(grep -r "@SpringBootTest\|@DataJpaTest\|@WebMvcTest" ai-review-core/src/test/java | wc -l)
         echo "### Test Types" >> $GITHUB_STEP_SUMMARY
         echo "- Unit tests: $UNIT_TESTS" >> $GITHUB_STEP_SUMMARY
         echo "- Integration tests: $INTEGRATION_TESTS" >> $GITHUB_STEP_SUMMARY
         
         # Mocking usage
-        MOCK_USAGE=$(grep -r "@Mock\|@MockBean\|Mockito" src/test/java | wc -l)
+        MOCK_USAGE=$(grep -r "@Mock\|@MockBean\|Mockito" ai-review-core/src/test/java | wc -l)
         echo "- Mocking usage: $MOCK_USAGE instances" >> $GITHUB_STEP_SUMMARY
     
     - name: Generate Adoption Score
