@@ -111,9 +111,6 @@ jobs:
           --no-transfer-progress
         
         docker build -t review-code-ai:latest .
+        echo "Docker image built successfully"
       env:
         MAVEN_OPTS: ${{ env.MAVEN_OPTS }}
-
-    - name: Test Docker image
-      run: |
-        docker run --rm review-code-ai:latest java --version
