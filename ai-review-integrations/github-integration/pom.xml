@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.reviewcode</groupId>
+        <artifactId>ai-review-integrations</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>github-integration</artifactId>
+    <name>GitHub Integration</name>
+    <description>GitHub webhooks and API integration</description>
+
+    <dependencies>
+        <!-- Dependency on core module -->
+        <dependency>
+            <groupId>com.reviewcode</groupId>
+            <artifactId>ai-review-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- GitHub API -->
+        <dependency>
+            <groupId>org.kohsuke</groupId>
+            <artifactId>github-api</artifactId>
+            <version>1.318</version>
+        </dependency>
+
+        <!-- Spring Boot -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+    </dependencies>
+</project>

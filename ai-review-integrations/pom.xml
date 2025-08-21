@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.reviewcode</groupId>
+        <artifactId>ai-code-review-parent</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>ai-review-integrations</artifactId>
+    <packaging>pom</packaging>
+    <name>AI Review Integrations</name>
+    <description>IDE plugins, web dashboard, and external integrations</description>
+
+    <modules>
+        <module>github-integration</module>
+        <module>web-dashboard</module>
+        <!-- intellij-plugin uses Gradle, managed separately -->
+    </modules>
+
+    <properties>
+        <node.version>v20.10.0</node.version>
+        <npm.version>10.2.3</npm.version>
+    </properties>
+</project>

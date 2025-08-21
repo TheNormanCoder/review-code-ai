@@ -25,18 +25,20 @@ jobs:
         distribution: 'temurin'
         cache: maven
 
-    - name: Build application
+    - name: Build core module
       run: |
         mvn clean compile \
+          -pl ai-review-core \
           -DskipTests \
           -Dmaven.test.skip=true \
           --no-transfer-progress
       env:
         MAVEN_OPTS: ${{ env.MAVEN_OPTS }}
 
-    - name: Package application
+    - name: Package core module
       run: |
         mvn package \
+          -pl ai-review-core \
           -DskipTests \
           -Dmaven.test.skip=true \
           --no-transfer-progress
@@ -47,7 +49,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: jar-artifacts
-        path: target/*.jar
+        path: ai-review-core/target/*.jar
         retention-days: 30
 
   code-quality:
@@ -69,6 +71,7 @@ jobs:
     - name: Run code quality checks
       run: |
         mvn verify \
+          -pl ai-review-core \
           -DskipTests \
           -Dmaven.test.skip=true \
           --no-transfer-progress
@@ -82,9 +85,9 @@ jobs:
       with:
         name: quality-reports
         path: |
-          target/pmd.xml
-          target/spotbugsXml.xml
-          target/site/
+          ai-review-core/target/pmd.xml
+          ai-review-core/target/spotbugsXml.xml
+          ai-review-core/target/site/
         retention-days: 30
 
   docker-build:
@@ -106,11 +109,12 @@ jobs:
     - name: Build Docker image
       run: |
         mvn clean package \
+          -pl ai-review-core \
           -DskipTests \
           -Dmaven.test.skip=true \
           --no-transfer-progress
         
-        docker build -t review-code-ai:latest .
+        docker build -t review-code-ai:latest -f ai-review-core/Dockerfile ai-review-core/
         echo "Docker image built successfully"
       env:
         MAVEN_OPTS: ${{ env.MAVEN_OPTS }}

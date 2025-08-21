@@ -1,0 +1,53 @@
+<idea-plugin>
+    <id>com.reviewcode.intellij-plugin</id>
+    <name>AI Code Review</name>
+    <vendor email="support@reviewcode.com" url="https://reviewcode.com">ReviewCode AI</vendor>
+
+    <description><![CDATA[
+        AI-powered code review plugin that provides real-time feedback on code quality,
+        security issues, and architectural patterns. Integrates with the AI Review Core API
+        to deliver intelligent suggestions directly in your IDE.
+        
+        Features:
+        - Real-time code analysis
+        - Security vulnerability detection  
+        - SOLID principles validation
+        - Architecture pattern recommendations
+        - Performance optimization hints
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Tool Window -->
+        <toolWindow id="AI Code Review" 
+                   secondary="true" 
+                   anchor="bottom" 
+                   factoryClass="com.reviewcode.intellij.toolwindow.CodeReviewToolWindowFactory"/>
+        
+        <!-- Inspections -->
+        <localInspection language="JAVA" 
+                        displayName="AI Code Review" 
+                        groupName="AI Review" 
+                        enabledByDefault="true" 
+                        level="WARNING" 
+                        implementationClass="com.reviewcode.intellij.inspections.AICodeInspection"/>
+        
+        <!-- Settings -->
+        <applicationConfigurable parentId="tools" 
+                               instance="com.reviewcode.intellij.settings.PluginSettings" 
+                               id="com.reviewcode.intellij.settings" 
+                               displayName="AI Code Review"/>
+    </extensions>
+
+    <actions>
+        <action id="com.reviewcode.intellij.actions.ReviewFileAction" 
+                class="com.reviewcode.intellij.actions.ReviewFileAction" 
+                text="Review Current File" 
+                description="Run AI review on current file">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt R"/>
+        </action>
+    </actions>
+</idea-plugin>

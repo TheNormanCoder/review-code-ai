@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    
+    <!-- Exclude EI_EXPOSE_REP warnings for Spring Boot/JPA entities and DTOs -->
+    <!-- These are common in data models and configuration classes -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP"/>
+        <Or>
+            <Package name="com.reviewcode.ai.model"/>
+            <Package name="com.reviewcode.ai.config"/>
+            <Package name="com.reviewcode.ai.service"/>
+        </Or>
+    </Match>
+    
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+        <Or>
+            <Package name="com.reviewcode.ai.model"/>
+            <Package name="com.reviewcode.ai.config"/>
+            <Package name="com.reviewcode.ai.service"/>
+        </Or>
+    </Match>
+    
+    <!-- Exclude format string warnings for logging/output methods -->
+    <Match>
+        <Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
+    </Match>
+    
+    <!-- Exclude locale-specific string conversion warnings for enum mapping -->
+    <Match>
+        <Bug pattern="DM_CONVERT_CASE"/>
+    </Match>
+    
+    <!-- Exclude unread field warnings for Spring injected dependencies -->
+    <Match>
+        <Bug pattern="URF_UNREAD_FIELD"/>
+        <Class name="com.reviewcode.ai.service.CodeReviewService"/>
+        <Field name="reviewSuggestionService"/>
+    </Match>
+    
+    <Match>
+        <Bug pattern="URF_UNREAD_FIELD"/>
+        <Class name="com.reviewcode.ai.service.VirtualThreadReviewService"/>
+        <Field name="aiReviewService"/>
+    </Match>
+    
+    <!-- Exclude dead store warnings for timing variables in performance monitoring -->
+    <Match>
+        <Bug pattern="DLS_DEAD_LOCAL_STORE"/>
+        <Class name="com.reviewcode.ai.service.VirtualThreadReviewService"/>
+        <Method name="performStructuredReview"/>
+    </Match>
+
+</FindBugsFilter>

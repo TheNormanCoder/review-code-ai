@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driverClassName: org.h2.Driver
+    username: sa
+    password: 
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  
+  h2:
+    console:
+      enabled: false
+
+logging:
+  level:
+    com.reviewcode.ai: INFO
+    org.springframework.security: WARN
+
+ai:
+  mcp:
+    endpoint: http://localhost:3000
+    api-key: test-key
+    timeout: 5000
