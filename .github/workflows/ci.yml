@@ -114,7 +114,7 @@ jobs:
           -Dmaven.test.skip=true \
           --no-transfer-progress
         
-        docker build -t review-code-ai:latest -f ai-review-core/Dockerfile ai-review-core/
+        docker build -t review-code-ai:latest -f ai-review-core/Dockerfile .
         echo "Docker image built successfully"
       env:
         MAVEN_OPTS: ${{ env.MAVEN_OPTS }}

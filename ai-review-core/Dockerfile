@@ -4,16 +4,20 @@ FROM maven:3.9.8-eclipse-temurin-21 AS build
 # Set working directory
 WORKDIR /app
 
-# Copy pom.xml first for better layer caching
-COPY pom.xml .
+# Create a standalone POM for ai-review-core
+COPY ai-review-core/pom.xml ./original-pom.xml
+
+# Copy standalone POM
+COPY ai-review-core/pom-docker.xml ./pom.xml
 
 # Download dependencies
 RUN mvn dependency:go-offline -B
 
 # Copy source code and configuration files
-COPY src ./src
-COPY custom-pmd-rules.xml ./
-COPY checkstyle.xml ./
+COPY ai-review-core/src ./src
+COPY ai-review-core/custom-pmd-rules.xml ./
+COPY ai-review-core/checkstyle.xml ./
+COPY ai-review-core/spotbugs-exclude.xml ./
 
 # Build the application
 RUN mvn clean package -DskipTests -Dmaven.test.skip=true
