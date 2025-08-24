@@ -2,7 +2,7 @@ import axios from 'axios'
 import { mockApi } from './mockApi'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
-const USE_MOCK_API = !import.meta.env.VITE_API_URL // Use mock when no API URL is provided
+const USE_MOCK_API = true // Always use mock for GitHub Pages demo
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
