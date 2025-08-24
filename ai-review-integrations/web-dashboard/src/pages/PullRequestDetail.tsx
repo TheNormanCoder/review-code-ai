@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pullRequestsApi } from '../services/api'
+import MCPReviewPanel from '../components/MCPReviewPanel'
+import { EnhancedReviewResult } from '../services/mcpApi'
 import { 
   ArrowLeft, 
   GitBranch, 
@@ -20,6 +22,7 @@ import {
 export default function PullRequestDetail() {
   const { id } = useParams<{ id: string }>()
   const [selectedFiles, setSelectedFiles] = useState<string[]>([])
+  const [showMCPPanel, setShowMCPPanel] = useState(false)
   const queryClient = useQueryClient()
 
   const { data: pullRequest, isLoading: prLoading } = useQuery({
@@ -98,6 +101,14 @@ export default function PullRequestDetail() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString()
+  }
+
+  const handleMCPReviewComplete = (result: EnhancedReviewResult) => {
+    // Invalidate queries to refresh the data
+    queryClient.invalidateQueries({ queryKey: ['pull-request-reviews', id] })
+    
+    // Show success message or handle the result as needed
+    console.log('MCP Review completed:', result)
   }
 
   if (prLoading) {
@@ -199,7 +210,7 @@ export default function PullRequestDetail() {
               </p>
             </div>
 
-            <div className="flex space-x-4">
+            <div className="flex flex-wrap gap-3">
               <button
                 onClick={handleAiSuggestions}
                 disabled={triggerAiSuggestions.isPending}
@@ -211,6 +222,14 @@ export default function PullRequestDetail() {
                   <Zap className="w-4 h-4" />
                 )}
                 <span>Get AI Suggestions</span>
+              </button>
+              
+              <button
+                onClick={() => setShowMCPPanel(!showMCPPanel)}
+                className="btn btn-secondary flex items-center space-x-2 bg-purple-600 text-white hover:bg-purple-700"
+              >
+                <Zap className="w-4 h-4" />
+                <span>{showMCPPanel ? 'Hide MCP Panel' : 'MCP Enhanced Review'}</span>
               </button>
               
               <button
@@ -227,6 +246,14 @@ export default function PullRequestDetail() {
               </button>
             </div>
           </div>
+
+          {/* MCP Enhanced Review Panel */}
+          {showMCPPanel && (
+            <MCPReviewPanel
+              pullRequestId={Number(id!)}
+              onReviewComplete={handleMCPReviewComplete}
+            />
+          )}
 
           {/* Reviews */}
           <div className="bg-white rounded-lg shadow-sm border">

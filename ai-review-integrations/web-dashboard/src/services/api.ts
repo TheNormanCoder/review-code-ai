@@ -93,7 +93,7 @@ export const pullRequestsApi = {
     USE_MOCK_API ? mockApi.pullRequests.triggerAiSuggestions(id, filesToReview) : api.post<ReviewSuggestion[]>(`/reviews/pull-requests/${id}/ai-suggestions`, filesToReview),
   
   triggerFinalReview: (id: number, filesToReview: string[]) =>
-    api.post<CodeReview>(`/reviews/pull-requests/${id}/ai-final-review`, filesToReview),
+    USE_MOCK_API ? mockApi.pullRequests.triggerFinalReview(id, filesToReview) : api.post<CodeReview>(`/reviews/pull-requests/${id}/ai-final-review`, filesToReview),
   
   getReviews: (id: number) =>
     USE_MOCK_API ? mockApi.pullRequests.getReviews(id) : api.get<CodeReview[]>(`/reviews/pull-requests/${id}/reviews`),

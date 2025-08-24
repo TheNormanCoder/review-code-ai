@@ -162,6 +162,22 @@ export const mockApi = {
       return { data: mockSuggestions.filter(s => s.pullRequestId === id) }
     },
     
+    triggerFinalReview: async (id: number, _filesToReview: string[]): Promise<{ data: CodeReview }> => {
+      await new Promise(resolve => setTimeout(resolve, 3000)) // Simulate AI processing time for final review
+      
+      const finalReview: CodeReview = {
+        id: Math.floor(Math.random() * 1000),
+        pullRequestId: id,
+        reviewType: 'AI',
+        status: 'APPROVED',
+        overallScore: 85,
+        findings: mockFindings,
+        createdAt: new Date().toISOString()
+      };
+      
+      return { data: finalReview }
+    },
+    
     getReviews: async (id: number): Promise<{ data: CodeReview[] }> => {
       await new Promise(resolve => setTimeout(resolve, 300))
       return { data: mockReviews.filter(r => r.pullRequestId === id) }
