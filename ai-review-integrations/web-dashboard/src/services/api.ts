@@ -1,6 +1,8 @@
 import axios from 'axios'
+import { mockApi } from './mockApi'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
+const USE_MOCK_API = !import.meta.env.VITE_API_URL // Use mock when no API URL is provided
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -79,22 +81,22 @@ export interface DashboardMetrics {
 // API functions
 export const pullRequestsApi = {
   getAll: (params?: { author?: string; status?: string }) =>
-    api.get<PullRequest[]>('/reviews/pull-requests', { params }),
+    USE_MOCK_API ? mockApi.pullRequests.getAll(params) : api.get<PullRequest[]>('/reviews/pull-requests', { params }),
   
   getById: (id: number) =>
-    api.get<PullRequest>(`/reviews/pull-requests/${id}`),
+    USE_MOCK_API ? mockApi.pullRequests.getById(id) : api.get<PullRequest>(`/reviews/pull-requests/${id}`),
   
   create: (data: Omit<PullRequest, 'id' | 'createdAt' | 'updatedAt'>) =>
     api.post<PullRequest>('/reviews/pull-requests', data),
   
   triggerAiSuggestions: (id: number, filesToReview: string[]) =>
-    api.post<ReviewSuggestion[]>(`/reviews/pull-requests/${id}/ai-suggestions`, filesToReview),
+    USE_MOCK_API ? mockApi.pullRequests.triggerAiSuggestions(id, filesToReview) : api.post<ReviewSuggestion[]>(`/reviews/pull-requests/${id}/ai-suggestions`, filesToReview),
   
   triggerFinalReview: (id: number, filesToReview: string[]) =>
     api.post<CodeReview>(`/reviews/pull-requests/${id}/ai-final-review`, filesToReview),
   
   getReviews: (id: number) =>
-    api.get<CodeReview[]>(`/reviews/pull-requests/${id}/reviews`),
+    USE_MOCK_API ? mockApi.pullRequests.getReviews(id) : api.get<CodeReview[]>(`/reviews/pull-requests/${id}/reviews`),
   
   addHumanReview: (id: number, review: Omit<CodeReview, 'id' | 'createdAt'>) =>
     api.post<CodeReview>(`/reviews/pull-requests/${id}/human-review`, review),
@@ -102,7 +104,7 @@ export const pullRequestsApi = {
 
 export const metricsApi = {
   getDashboard: () =>
-    api.get<DashboardMetrics>('/reviews/metrics/dashboard'),
+    USE_MOCK_API ? mockApi.metrics.getDashboard() : api.get<DashboardMetrics>('/reviews/metrics/dashboard'),
   
   getDaily: (days = 30) =>
     api.get('/reviews/metrics/daily', { params: { days } }),
