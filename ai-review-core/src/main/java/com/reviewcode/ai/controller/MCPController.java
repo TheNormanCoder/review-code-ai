@@ -4,7 +4,7 @@ import com.reviewcode.ai.mcp.EnhancedMCPClient;
 import com.reviewcode.ai.mcp.EnhancedReviewResult;
 import com.reviewcode.ai.mcp.MCPSession;
 import com.reviewcode.ai.model.PullRequest;
-import com.reviewcode.ai.service.PullRequestService;
+import com.reviewcode.ai.service.CodeReviewService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +28,7 @@ public class MCPController {
     private EnhancedMCPClient mcpClient;
     
     @Autowired
-    private PullRequestService pullRequestService;
+    private CodeReviewService codeReviewService;
     
     /**
      * Create a new MCP session
@@ -78,12 +78,13 @@ public class MCPController {
             @PathVariable Long pullRequestId,
             @RequestBody(required = false) EnhancedMCPClient.ReviewOptions options) {
         
-        if (options == null) {
-            options = new EnhancedMCPClient.ReviewOptions();
-        }
+        final EnhancedMCPClient.ReviewOptions finalOptions = (options == null) ? new EnhancedMCPClient.ReviewOptions() : options;
         
-        return pullRequestService.findById(pullRequestId)
-            .flatMap(pullRequest -> mcpClient.performAdvancedReview(pullRequest, options))
+        return Mono.fromCallable(() -> codeReviewService.getPullRequest(pullRequestId))
+            .flatMap(optional -> optional.isPresent() 
+                ? Mono.just(optional.get()) 
+                : Mono.error(new RuntimeException("Pull request not found")))
+            .flatMap(pullRequest -> mcpClient.performAdvancedReview(pullRequest, finalOptions))
             .map(ResponseEntity::ok);
     }
     
@@ -102,7 +103,10 @@ public class MCPController {
         }
         options.setSeverityThreshold(severityThreshold);
         
-        return pullRequestService.findById(pullRequestId)
+        return Mono.fromCallable(() -> codeReviewService.getPullRequest(pullRequestId))
+            .flatMap(optional -> optional.isPresent() 
+                ? Mono.just(optional.get()) 
+                : Mono.error(new RuntimeException("Pull request not found")))
             .flatMapMany(pullRequest -> mcpClient.streamReview(pullRequest, options));
     }
     
@@ -110,7 +114,7 @@ public class MCPController {
      * Execute specific MCP tool
      */
     @PostMapping("/tools/{toolName}/execute")
-    public Mono<ResponseEntity<Object>> executeTool(
+    public Mono<ResponseEntity<Map<String, Object>>> executeTool(
             @PathVariable String toolName,
             @RequestBody Map<String, Object> parameters) {
         
@@ -118,17 +122,20 @@ public class MCPController {
         
         return session.executeTool(toolName, parameters)
             .map(result -> {
+                Map<String, Object> responseBody;
                 if (result.isSuccess()) {
-                    return ResponseEntity.ok(Map.of(
+                    responseBody = Map.of(
                         "success", true,
                         "content", result.getContent(),
                         "metadata", result.getMetadata()
-                    ));
+                    );
+                    return ResponseEntity.ok(responseBody);
                 } else {
-                    return ResponseEntity.badRequest().body(Map.of(
+                    responseBody = Map.of(
                         "success", false,
                         "error", result.getError()
-                    ));
+                    );
+                    return ResponseEntity.badRequest().body(responseBody);
                 }
             })
             .doFinally(signal -> session.close());
@@ -138,7 +145,7 @@ public class MCPController {
      * Execute tool chain
      */
     @PostMapping("/tools/chain")
-    public Mono<ResponseEntity<List<Object>>> executeToolChain(
+    public Mono<ResponseEntity<List<Map<String, Object>>>> executeToolChain(
             @RequestBody ToolChainRequest request) {
         
         MCPSession session = mcpClient.createSession(null);

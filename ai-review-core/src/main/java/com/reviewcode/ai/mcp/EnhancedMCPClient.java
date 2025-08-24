@@ -51,8 +51,8 @@ public class EnhancedMCPClient {
      * Perform advanced code review with AI tool chaining
      */
     public Mono<EnhancedReviewResult> performAdvancedReview(PullRequest pullRequest, ReviewOptions options) {
-        return createSession(null)
-            .let(session -> performReviewWithSession(pullRequest, options, session));
+        MCPSession session = createSession(null);
+        return performReviewWithSession(pullRequest, options, session);
     }
     
     /**
@@ -110,14 +110,14 @@ public class EnhancedMCPClient {
         // Add PR context to session
         session.addContext("pull_request", pullRequest);
         session.addContext("repository_url", pullRequest.getRepositoryUrl());
-        session.addContext("branch", pullRequest.getBranchName());
+        session.addContext("branch", pullRequest.getSourceBranch());
         
         // Get Git information
         List<MCPSession.MCPToolRequest> contextRequests = List.of(
             new MCPSession.MCPToolRequest("git", Map.of(
                 "command", "diff",
                 "repository", pullRequest.getRepositoryUrl(),
-                "parameters", Map.of("commit", pullRequest.getBranchName())
+                "parameters", Map.of("commit", pullRequest.getSourceBranch())
             )),
             new MCPSession.MCPToolRequest("git", Map.of(
                 "command", "log",
@@ -240,7 +240,7 @@ public class EnhancedMCPClient {
                     builder.toolResults(toolResults);
                     
                     // Send notifications if critical issues found
-                    if (hasкритicalFindings(toolResults)) {
+                    if (hasCriticalFindings(toolResults)) {
                         sendCriticalNotification(session, toolResults);
                     }
                     
@@ -277,7 +277,7 @@ public class EnhancedMCPClient {
         return prompt.toString();
     }
     
-    private boolean hasЦритicalFindings(List<MCPToolResult> toolResults) {
+    private boolean hasCriticalFindings(List<MCPToolResult> toolResults) {
         // Check if any tool results indicate critical issues
         return toolResults.stream()
             .anyMatch(result -> result.getMetadata() != null && 
